@@ -1,7 +1,19 @@
+import { useVirtualizer } from "@tanstack/react-virtual";
+import {
+  loadConversation,
+  saveConversation,
+  type SavedConversation,
+} from "./storage";
 import { INTENTS, topIntents } from "../shared/intents";
 import { REPLY_RATINGS, replyRating } from "../shared/ratings";
 import { EMOTIONS, topEmotions } from "../shared/labels";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  useCallback,
+  type ReactNode,
+} from "react";
 import {
   Heart,
   MoreHorizontal,
@@ -15,14 +27,9 @@ import {
   Send,
   Check,
 } from "lucide-react";
+import { parseChat, toMessages, mergeMessages } from "../shared/parser";
 import {
-  parseChat,
-  toMessages,
-  mergeMessages,
-  withinScope,
-  recentScope,
-} from "../shared/parser";
-import {
+  RUBRIC,
   ACTIONS,
   RELATIONS,
   statusLabel,
@@ -108,34 +115,122 @@ export default function App() {
     [settings, setSettings] = useState(false),
     [detail, setDetail] = useState<string | null>(null),
     [notice, setNotice] = useState("");
-  const [overlap, setOverlap] = useState<Message[] | null>(null),
-    [scope, setScope] = useState<Message[] | null>(null);
-  const bottom = useRef<HTMLDivElement>(null);
+  const [overlap, setOverlap] = useState<Message[] | null>(null);
+  const [ready, setReady] = useState(false),
+    [storageError, setStorageError] = useState("");
+  const scroller = useRef<HTMLDivElement>(null);
+  const virtual = useVirtualizer({
+    count: messages.length,
+    getScrollElement: () => scroller.current,
+    estimateSize: () => 150,
+    getItemKey: useCallback((i: number) => messages[i].id, [messages]),
+    overscan: 8,
+    anchorTo: "end",
+    followOnAppend: true,
+    scrollEndThreshold: 100,
+  });
+  useEffect(() => {
+    let live = true;
+    loadConversation()
+      .then((saved) => {
+        if (!live) return;
+        if (saved?.schema === 1) {
+          setMessages(saved.messages);
+          setSelf(saved.self);
+          setOther(saved.other);
+          setRelation(saved.relation);
+          a.restore(saved);
+        }
+        setReady(true);
+      })
+      .catch(() => {
+        if (live) {
+          setStorageError(
+            "本机记录读取失败，请检查浏览器存储权限。为避免覆盖旧记录，暂不自动保存。",
+          );
+          setReady(true);
+        }
+      });
+    return () => {
+      live = false;
+    };
+  }, []);
+  const pendingSave = useRef<SavedConversation | null>(null),
+    saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null),
+    lastSavedMessages = useRef<Message[] | null>(null);
+  const flushSave = () => {
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = null;
+    void saveConversation(pendingSave.current).catch(() =>
+      setStorageError(
+        "本机保存失败，可能存储空间不足。当前页面仍可使用，请勿刷新以免丢失未保存记录。",
+      ),
+    );
+  };
+  useEffect(() => {
+    if (!ready || storageError) return;
+    pendingSave.current = messages.length
+      ? {
+          schema: 1,
+          rubric: RUBRIC,
+          messages,
+          self,
+          other,
+          relation,
+          lines: a.lines,
+          events: a.events,
+          overview: a.overview,
+          trend: a.trend,
+          analyzedCount: a.analyzedCount,
+          completed: a.status === "complete",
+        }
+      : null;
+    if (lastSavedMessages.current !== messages || a.status !== "loading") {
+      lastSavedMessages.current = messages;
+      flushSave();
+    } else if (!saveTimer.current)
+      saveTimer.current = setTimeout(flushSave, 750);
+  }, [
+    ready,
+    messages,
+    self,
+    other,
+    relation,
+    a.lines,
+    a.events,
+    a.overview,
+    a.trend,
+    a.analyzedCount,
+    a.status,
+  ]);
+  useEffect(() => {
+    const flush = () => {
+      if (saveTimer.current) flushSave();
+    };
+    window.addEventListener("pagehide", flush);
+    document.addEventListener("visibilitychange", flush);
+    return () => {
+      window.removeEventListener("pagehide", flush);
+      document.removeEventListener("visibilitychange", flush);
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+    };
+  }, []);
   const stay = useRef(true);
   useEffect(() => {
-    if (stay.current) {
-      const scroller = bottom.current?.parentElement;
-      scroller?.scrollTo({ top: scroller.scrollHeight, behavior: "smooth" });
-    }
+    if (messages.length && stay.current)
+      virtual.scrollToIndex(messages.length - 1, { align: "end" });
   }, [messages.length]);
   const busy = a.status === "loading",
     ov = a.overview,
     value = ov?.affinity.value,
     quality = meanQuality(messages, a.lines);
-  const last = a.history.at(-1),
-    previous = a.history.at(-2);
+  const last = a.trend.at(-1),
+    previous = a.trend.at(-2);
   const delta =
-    a.status === "complete" &&
-    last?.comparable &&
-    previous?.overview.affinity.value != null &&
-    last.overview.affinity.value != null
-      ? last.overview.affinity.value - previous.overview.affinity.value
+    a.status === "complete" && last?.value != null && previous?.value != null
+      ? last.value - previous.value
       : null;
   function start(ms: Message[]) {
-    if (!withinScope(ms)) {
-      setScope(ms);
-      return;
-    }
     setMessages(ms);
     setInput("");
     a.run(ms, relation);
@@ -156,8 +251,8 @@ export default function App() {
   }
   function prepare(text: string) {
     if (!text.trim()) return;
-    if (text.length > 100000) {
-      setNotice("请分段粘贴，每次不超过 120 条。");
+    if (text.length > 250000) {
+      setNotice("这次粘贴超过25万字符，请分几次追加；历史记录不会被截断。");
       return;
     }
     const p = parseChat(text);
@@ -185,6 +280,12 @@ export default function App() {
   }
   function clear() {
     a.reset();
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = null;
+    pendingSave.current = null;
+    void saveConversation(null)
+      .then(() => setStorageError(""))
+      .catch(() => setStorageError("本机记录删除失败，请重试清空。"));
     setMessages([]);
     setInput("");
     setSelf("");
@@ -208,8 +309,9 @@ export default function App() {
               className="rail-active"
               aria-label="滚动到最新聊天"
               onClick={() => {
-                const el = bottom.current?.parentElement;
-                el?.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+                stay.current = true;
+                if (messages.length)
+                  virtual.scrollToIndex(messages.length - 1, { align: "end" });
               }}
             >
               <MessageCircle size={23} />
@@ -269,6 +371,7 @@ export default function App() {
             </div>
           </header>
           <div
+            ref={scroller}
             className="chat-scroll"
             onScroll={(e) => {
               const el = e.currentTarget;
@@ -288,116 +391,140 @@ export default function App() {
                 </button>
               </div>
             ) : (
-              messages.map((m, i) => {
-                const r = a.lines[m.id];
+              <div
+                style={{
+                  height: virtual.getTotalSize(),
+                  position: "relative",
+                  width: "100%",
+                }}
+              >
+                {virtual.getVirtualItems().map((row) => {
+                  const i = row.index,
+                    m = messages[i];
+                  const r = a.lines[m.id];
 
-                return (
-                  <div
-                    key={m.id}
-                    id={`message-${m.id}`}
-                    className={`message ${m.sender}`}
-                  >
-                    {(i === 0 || m.timestamp !== messages[i - 1].timestamp) &&
-                      m.timestamp && (
-                        <div className="timestamp">
-                          {m.timestamp.replace(/^\d{4}年/, "")}
-                        </div>
-                      )}
-                    <div className="message-row">
-                      <div
-                        className={`avatar ${m.sender === "self" ? "mine" : ""}`}
-                      >
-                        {(m.sender === "self" ? self : other).slice(0, 1)}
-                      </div>
-                      <div className="message-content">
-                        <div className="bubble">{m.text}</div>
-                        {m.kind === "text" && (
-                          <div className={`message-tags ${m.sender}`}>
-                            {m.sender === "other" ? (
-                              <>
-                                <div className="analysis-row emotion-row">
-                                  <span className="analysis-row-label">
-                                    情绪
-                                  </span>
-                                  {r?.emotions ? (
-                                    topEmotions(r.emotions).map((emotion) => (
-                                      <button
-                                        key={emotion.key}
-                                        className={`emotion-tag emotion-${emotion.key}`}
-                                        onClick={() => setDetail(m.id)}
-                                        aria-label={`${emotion.label} ${emotion.percent}，查看情绪分析：${m.text}`}
-                                      >
-                                        <span>{emotion.label}</span>
-                                        <b>{emotion.percent}</b>
-                                      </button>
-                                    ))
-                                  ) : (
-                                    <button
-                                      className="pending-tag"
-                                      disabled={busy}
-                                      onClick={() => a.run(messages, relation)}
-                                    >
-                                      {busy ? "分析中" : "分析情绪"}
-                                    </button>
-                                  )}
-                                </div>
-                                <div className="analysis-row intent-row">
-                                  <span className="analysis-row-label">
-                                    意图
-                                  </span>
-                                  {r?.intents ? (
-                                    topIntents(r.intents).map((intent) => (
-                                      <button
-                                        key={intent.key}
-                                        className="intent-tag"
-                                        onClick={() => setDetail(m.id)}
-                                        aria-label={`${intent.label} ${intent.percent}，查看意图分析：${m.text}`}
-                                      >
-                                        <span>{intent.label}</span>
-                                        <b>{intent.percent}</b>
-                                      </button>
-                                    ))
-                                  ) : (
-                                    <button
-                                      className="pending-tag"
-                                      disabled={busy}
-                                      onClick={() => a.run(messages, relation)}
-                                    >
-                                      {busy ? "分析中" : "分析意图"}
-                                    </button>
-                                  )}
-                                </div>
-                              </>
-                            ) : r ? (
-                              <button
-                                className="reply-tag"
-                                onClick={() => setDetail(m.id)}
-                                aria-label={`查看回复评价：${m.text}`}
-                              >
-                                <span>回复评级：</span>
-                                <b>
-                                  {replyRating(r.score.value)?.label ??
-                                    "待判断"}
-                                </b>
-                              </button>
-                            ) : (
-                              <button
-                                className="pending-tag"
-                                disabled={busy}
-                                onClick={() => a.run(messages, relation)}
-                              >
-                                {busy ? "分析中" : "评价回复"}
-                              </button>
-                            )}
+                  return (
+                    <div
+                      key={m.id}
+                      data-index={row.index}
+                      ref={virtual.measureElement}
+                      style={{
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        width: "100%",
+                        transform: `translateY(${row.start}px)`,
+                      }}
+                      id={`message-${m.id}`}
+                      className={`message ${m.sender}`}
+                    >
+                      {(i === 0 || m.timestamp !== messages[i - 1].timestamp) &&
+                        m.timestamp && (
+                          <div className="timestamp">
+                            {m.timestamp.replace(/^\d{4}年/, "")}
                           </div>
                         )}
+                      <div className="message-row">
+                        <div
+                          className={`avatar ${m.sender === "self" ? "mine" : ""}`}
+                        >
+                          {(m.sender === "self" ? self : other).slice(0, 1)}
+                        </div>
+                        <div className="message-content">
+                          <div className="bubble">{m.text}</div>
+                          {m.kind === "text" && (
+                            <div className={`message-tags ${m.sender}`}>
+                              {r?.skipped ? (
+                                <span className="pending-tag">{r.skipped}</span>
+                              ) : m.sender === "other" ? (
+                                <>
+                                  <div className="analysis-row emotion-row">
+                                    <span className="analysis-row-label">
+                                      情绪
+                                    </span>
+                                    {r?.emotions ? (
+                                      topEmotions(r.emotions).map((emotion) => (
+                                        <button
+                                          key={emotion.key}
+                                          className={`emotion-tag emotion-${emotion.key}`}
+                                          onClick={() => setDetail(m.id)}
+                                          aria-label={`${emotion.label} ${emotion.percent}，查看情绪分析：${m.text}`}
+                                        >
+                                          <span>{emotion.label}</span>
+                                          <b>{emotion.percent}</b>
+                                        </button>
+                                      ))
+                                    ) : (
+                                      <button
+                                        className="pending-tag"
+                                        disabled={busy}
+                                        onClick={() =>
+                                          a.run(messages, relation)
+                                        }
+                                      >
+                                        {busy ? "分析中" : "分析情绪"}
+                                      </button>
+                                    )}
+                                  </div>
+                                  <div className="analysis-row intent-row">
+                                    <span className="analysis-row-label">
+                                      意图
+                                    </span>
+                                    {r?.intents ? (
+                                      topIntents(r.intents).map((intent) => (
+                                        <button
+                                          key={intent.key}
+                                          className="intent-tag"
+                                          onClick={() => setDetail(m.id)}
+                                          aria-label={`${intent.label} ${intent.percent}，查看意图分析：${m.text}`}
+                                        >
+                                          <span>{intent.label}</span>
+                                          <b>{intent.percent}</b>
+                                        </button>
+                                      ))
+                                    ) : (
+                                      <button
+                                        className="pending-tag"
+                                        disabled={busy}
+                                        onClick={() =>
+                                          a.run(messages, relation)
+                                        }
+                                      >
+                                        {busy ? "分析中" : "分析意图"}
+                                      </button>
+                                    )}
+                                  </div>
+                                </>
+                              ) : r ? (
+                                <button
+                                  className="reply-tag"
+                                  onClick={() => setDetail(m.id)}
+                                  aria-label={`查看回复评价：${m.text}`}
+                                >
+                                  <span>回复评级：</span>
+                                  <b>
+                                    {replyRating(r.score.value)?.label ??
+                                      "待判断"}
+                                  </b>
+                                </button>
+                              ) : (
+                                <button
+                                  className="pending-tag"
+                                  disabled={busy}
+                                  onClick={() => a.run(messages, relation)}
+                                >
+                                  {busy ? "分析中" : "评价回复"}
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })
+                  );
+                })}
+              </div>
             )}
-            <div ref={bottom} />
           </div>
           <div className="chat-insights">
             <button
@@ -421,6 +548,7 @@ export default function App() {
           <div className="composer">
             <textarea
               aria-label="粘贴微信聊天记录"
+              disabled={!ready}
               placeholder={
                 messages.length
                   ? "粘贴新的聊天，自动合并重复记录"
@@ -443,7 +571,7 @@ export default function App() {
             />
             <div className="composer-bottom">
               <div className="composer-feedback">
-                <span role="status">{notice}</span>{" "}
+                <span role="status">{storageError || notice}</span>{" "}
                 <div className="analysis-status" aria-live="polite">
                   {busy ? (
                     <>
@@ -584,12 +712,15 @@ export default function App() {
           <button className="secondary danger" onClick={clear}>
             清空聊天，重新开始
           </button>
-          <p>聊天只保留在当前页面，分析时发送给模型服务。</p>
+          <p>
+            已保存 {messages.length.toLocaleString()}{" "}
+            条聊天。记录保存在本机浏览器，刷新后可继续；分析时只发送所需片段给模型服务。清空会删除本机记录。
+          </p>
         </Modal>
       )}
       {detail === "clear" && (
         <Modal title="开始新的聊天？" close={() => setDetail(null)}>
-          <p>当前聊天和分析会清空。</p>
+          <p>当前聊天、分析和本机保存的记录都会删除。</p>
           <button className="primary" onClick={clear}>
             开始新聊天
           </button>
@@ -619,11 +750,49 @@ export default function App() {
                 0—100 是模型对这段聊天的好感信号评分，不是「对方喜欢你的概率」。
               </p>
               <p>
-                有评分就展示数值。上下文少或表达模糊时，也保留数值供娱乐参考。
+                根据近期对话和相关历史原话评分，旧分数不参与计算。证据少时仍保留分数供娱乐参考。
               </p>
+              {!!ov?.memoryEvidenceIds?.length && (
+                <details>
+                  <summary>参考的历史原话</summary>
+                  {[...new Set(ov.memoryEvidenceIds)].map((id) => {
+                    const m = messages.find((m) => m.id === id);
+                    return m ? (
+                      <blockquote key={id}>
+                        {m.sender === "self" ? self : other}：{m.text}
+                      </blockquote>
+                    ) : null;
+                  })}
+                </details>
+              )}
+              {ov?.affinityDimensions && (
+                <div className="affinity-breakdown">
+                  {ov.affinityDimensions.map((d) => (
+                    <div key={d.key}>
+                      <span>{d.label}</span>
+                      <meter
+                        min="0"
+                        max="100"
+                        value={d.judgment.value ?? 0}
+                        aria-label={`${d.label} ${d.judgment.value} 分`}
+                      />
+                      <strong>{d.judgment.value}</strong>
+                      <small>
+                        占 {d.weight}% · {statusLabel(d.judgment)}
+                      </small>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {ov?.boundaryApplied && (
+                <p>
+                  对方表达了明确且仍有效的拒绝边界。综合原分{" "}
+                  {ov.affinityRawValue}，最终好感度最多显示 25 分。
+                </p>
+              )}
               {ov && (
                 <p>
-                  本轮判断：{statusLabel(ov.affinity)}。模型确定度{" "}
+                  本轮判断：{statusLabel(ov.affinity)}。综合确定度{" "}
                   {Math.round(ov.affinity.confidence * 100)}%。
                 </p>
               )}
@@ -751,21 +920,6 @@ export default function App() {
             }}
           >
             作为新消息追加
-          </button>
-        </Modal>
-      )}
-      {scope && (
-        <Modal title="聊天有点长" close={() => setScope(null)}>
-          <p>一次分析最多 120 条、24,000 字，保留最近一段继续。</p>
-          <button
-            className="primary"
-            disabled={!recentScope(scope).length}
-            onClick={() => {
-              start(recentScope(scope));
-              setScope(null);
-            }}
-          >
-            分析最近的聊天
           </button>
         </Modal>
       )}

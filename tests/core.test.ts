@@ -166,7 +166,7 @@ test("拒绝重复ID和错误目标角色", () => {
   );
 });
 test("长度范围不会静默吞掉超长尾部", () => {
-  const messages = msg("我：" + "长".repeat(24001));
+  const messages = msg("我：" + "长".repeat(12001));
   assert.equal(withinScope(messages), false);
   assert.equal(recentScope(messages).length, 0);
 });
@@ -218,6 +218,7 @@ test("对方并行请求情绪与意图，不请求逐句好感分", () => {
     ],
   });
   assert.deepEqual(Object.keys(request.questions), [
+    "emotion_event",
     "emotion_emotions",
     "emotion_intents",
   ]);

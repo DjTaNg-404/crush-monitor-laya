@@ -5,7 +5,7 @@ import { join, dirname } from "node:path";
 import { analyze, requestSchema } from "./analysis";
 const app = express();
 app.disable("x-powered-by");
-app.use(express.json({ limit: "160kb" }));
+app.use(express.json({ limit: "512kb" }));
 app.use((_req, res, next) => {
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("Referrer-Policy", "no-referrer");
@@ -56,7 +56,15 @@ app.post("/api/analyze", async (req, res) => {
     budgets.set(key, entry);
   }
   if (entry.count >= 180 || calls >= 3000 || active >= 8) {
-    res.status(429).json({ error: "分析请求较多，请稍后重试" });
+    res.setHeader(
+      "Retry-After",
+      String(
+        calls >= 3000
+          ? Math.max(1, Math.ceil((windowAt + 3600000 - now) / 1000))
+          : Math.max(1, Math.ceil((entry.at + 60000 - now) / 1000)),
+      ),
+    );
+    res.status(429).json({ error: "分析请求较多，已保留进度，请稍后继续" });
     return;
   }
   entry.count++;
@@ -71,6 +79,7 @@ app.post("/api/analyze", async (req, res) => {
   } catch (error) {
     const code = Number((error as { status?: number }).status) || 502;
     const messages: Record<number, string> = {
+      400: "Jev 输入超过模型容量，请减少聊天条数或缩小正文范围后重试",
       401: "Jev 认证失败，请检查服务端 API 配置",
       403: "当前 API 账号没有调用权限",
       422: "模型无法处理当前输入，请缩小聊天范围重试",
@@ -78,13 +87,10 @@ app.post("/api/analyze", async (req, res) => {
       529: "Jev 暂时繁忙，请重试",
     };
     if (!res.headersSent && !controller.signal.aborted)
-      res
-        .status(code >= 400 && code < 600 ? code : 502)
-        .json({
-          error:
-            messages[code] ||
-            "分析未完成，可能是网络超时。已保留聊天，可重试。",
-        });
+      res.status(code >= 400 && code < 600 ? code : 502).json({
+        error:
+          messages[code] || "分析未完成，可能是网络超时。已保留聊天，可重试。",
+      });
   } finally {
     active--;
   }

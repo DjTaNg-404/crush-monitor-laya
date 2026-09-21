@@ -1,31 +1,54 @@
 import { useRef, useState } from "react";
+import { incrementalJobs, overviewJob } from "../shared/incremental";
 import {
-  contextKey,
-  meanQuality,
+  collectEvents,
+  boundedContext,
+  type MemoryEvent,
+} from "../shared/memory";
+import {
+  RUBRIC,
+  requestContextKey,
   type Message,
   type Relation,
-  type Snapshot,
   type Overview,
   type LineResult,
-  type AnalysisResponse,
   type AnalysisRequest,
+  type AnalysisResponse,
 } from "../shared/types";
+import type { SavedConversation, Trend } from "./storage";
+const pause = (ms: number, signal: AbortSignal) =>
+  new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(done, ms);
+    function done() {
+      signal.removeEventListener("abort", abort);
+      resolve();
+    }
+    function abort() {
+      clearTimeout(timer);
+      reject(new DOMException("Aborted", "AbortError"));
+    }
+    signal.addEventListener("abort", abort, { once: true });
+    if (signal.aborted) abort();
+  });
 export function useAnalysis() {
   const [overview, setOverview] = useState<Overview | null>(null),
     [overviewFresh, setOverviewFresh] = useState(false),
     [lines, setLines] = useState<Record<string, LineResult>>({}),
+    [events, setEvents] = useState<Record<string, MemoryEvent>>({}),
+    [trend, setTrend] = useState<Trend[]>([]),
     [status, setStatus] = useState<"idle" | "loading" | "complete" | "error">(
       "idle",
     ),
     [error, setError] = useState(""),
-    [history, setHistory] = useState<Snapshot[]>([]),
     [progress, setProgress] = useState({ done: 0, total: 0 }),
     [latency, setLatency] = useState(0),
-    [currentIds, setCurrentIds] = useState<Set<string>>(new Set());
+    [analyzedCount, setAnalyzedCount] = useState(0);
   const rev = useRef(0),
     controller = useRef<AbortController | null>(null),
-    cache = useRef(new Map<string, AnalysisResponse>()),
-    historyRef = useRef<Snapshot[]>([]);
+    base = useRef<{ messages: Message[]; relation: Relation } | null>(null),
+    savedLines = useRef(lines),
+    savedEvents = useRef(events),
+    processed = useRef(0);
   function cancel() {
     rev.current++;
     controller.current?.abort();
@@ -33,181 +56,250 @@ export function useAnalysis() {
   }
   function reset() {
     cancel();
-    cache.current.clear();
-    historyRef.current = [];
-    setHistory([]);
+    base.current = null;
+    savedLines.current = {};
+    savedEvents.current = {};
+    processed.current = 0;
+    setLines({});
+    setEvents({});
+    setTrend([]);
     setOverview(null);
     setOverviewFresh(false);
-    setLines({});
     setError("");
     setLatency(0);
-    setCurrentIds(new Set());
+    setAnalyzedCount(0);
   }
-  function showFixture(s: Snapshot) {
-    cancel();
-    setOverview(s.overview);
-    setOverviewFresh(true);
+  function restore(s: SavedConversation) {
+    reset();
+    base.current = { messages: s.messages, relation: s.relation };
+    if (s.rubric !== RUBRIC) return;
+    savedLines.current = s.lines;
+    savedEvents.current = s.events;
+    processed.current = s.analyzedCount;
     setLines(s.lines);
-    setStatus("complete");
-    setError("");
-    setLatency(0);
-    setCurrentIds(new Set(s.messages.map((m) => m.id)));
+    setEvents(s.events);
+    setTrend(s.trend);
+    setOverview(s.overview);
+    setOverviewFresh(s.completed);
+    setAnalyzedCount(s.analyzedCount);
+    setStatus(s.completed ? "complete" : "idle");
   }
   async function run(messages: Message[], relation: Relation) {
     const revision = ++rev.current;
     controller.current?.abort();
     const ctrl = new AbortController();
     controller.current = ctrl;
-    const start = performance.now();
+    const started = performance.now();
     setStatus("loading");
-    setOverviewFresh(false);
     setError("");
-    setCurrentIds(new Set());
-    let nextOverview: Overview | null = null;
-    const nextLines: Record<string, LineResult> = {};
-    let failures = 0;
-    let done = 0;
-    const task = (
-      task: AnalysisRequest["task"],
-      targetIds: string[],
-      ms = messages,
-    ): AnalysisRequest => ({
-      revision,
-      relation,
-      messages: ms,
-      task,
-      targetIds,
-    });
-    const others = messages.filter(
-      (m) => m.sender === "other" && m.kind === "text",
-    );
-    const batches: AnalysisRequest[] = [];
-    for (let i = others.length; i > 0; i -= 20)
-      batches.push(
-        task(
-          "other_messages",
-          others.slice(Math.max(0, i - 20), i).map((m) => m.id),
-        ),
+    setOverviewFresh(false);
+    const previous = base.current;
+    const append =
+      !!previous &&
+      previous.relation === relation &&
+      previous.messages.length <= messages.length &&
+      previous.messages.every(
+        (m, i) =>
+          m.id === messages[i].id &&
+          m.sender === messages[i].sender &&
+          m.text === messages[i].text &&
+          m.timestamp === messages[i].timestamp,
       );
-    const self = messages.flatMap((m, i) =>
-      m.sender === "self" && m.kind === "text"
-        ? [task("self_message", [m.id], messages.slice(0, i + 1))]
-        : [],
+    const changed = !append || messages.length !== processed.current;
+    let nextLines: Record<string, LineResult> = append
+      ? { ...savedLines.current }
+      : {};
+    let nextEvents: Record<string, MemoryEvent> = append
+      ? { ...savedEvents.current }
+      : {};
+    if (!append) {
+      setTrend([]);
+      setOverview(null);
+      processed.current = 0;
+      setAnalyzedCount(0);
+    }
+    savedEvents.current = nextEvents;
+    setEvents(nextEvents);
+    base.current = { messages, relation };
+    for (const m of messages)
+      if (m.kind === "text" && Array.from(m.text).length > 12000)
+        nextLines[m.id] = {
+          id: m.id,
+          skipped: "单条超过12,000字，已保存，请拆分后分析",
+          score: {
+            value: null,
+            confidence: 0,
+            status: "insufficient",
+            probabilities: {},
+          },
+        };
+    setLines(nextLines);
+    savedLines.current = nextLines;
+    const jobs = incrementalJobs(
+      messages,
+      relation,
+      revision,
+      nextLines,
+      nextEvents,
+      changed,
     );
-    const jobs = [
-      task("overview", []),
-      ...batches.slice(0, 1),
-      ...self.reverse(),
-      ...batches.slice(1),
-    ];
-    setProgress({ done: 0, total: jobs.length });
+    if (!append) jobs.reverse();
+    const first = overviewJob(messages, relation, revision, nextEvents);
+    if (!first.messages.length) {
+      setStatus("error");
+      setError("记录已保存，但没有可分析的文字。单条过长的消息请拆分。");
+      return;
+    }
+    let failed = 0,
+      done = 0;
+    setProgress({ done: 0, total: jobs.length + 2 });
     async function execute(job: AnalysisRequest) {
-      const key =
-        contextKey(job.messages, relation) + job.task + job.targetIds.join(",");
-      let result = cache.current.get(key);
-      if (!result) {
+      let data: AnalysisResponse | undefined;
+      for (let attempt = 0; attempt < 4; attempt++) {
         const response = await fetch("/api/analyze", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(job),
           signal: ctrl.signal,
         });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || "分析失败");
-        result = data as AnalysisResponse;
-        if (result.revision !== revision)
-          throw new Error("分析批次不匹配，请重试");
-        const digest = await crypto.subtle.digest(
-          "SHA-256",
-          new TextEncoder().encode(contextKey(job.messages, relation)),
-        );
-        const hash = Array.from(new Uint8Array(digest), (b) =>
-          b.toString(16).padStart(2, "0"),
-        ).join("");
-        if (result.contextHash !== hash)
-          throw new Error("分析上下文不匹配，请重试");
-        if (rev.current !== revision) return;
-        cache.current.set(key, result);
+        if ([429, 529].includes(response.status) && attempt < 3) {
+          await pause(
+            Math.min(
+              60000,
+              Number(response.headers.get("retry-after") || 2 ** attempt) *
+                1000,
+            ),
+            ctrl.signal,
+          );
+          continue;
+        }
+        const body = await response.json();
+        if (!response.ok) throw new Error(body.error || "分析失败");
+        data = body;
+        break;
       }
+      if (!data || data.revision !== revision || data.rubricVersion !== RUBRIC)
+        throw new Error("分析版本不匹配，请刷新重试");
+      const digest = await crypto.subtle.digest(
+        "SHA-256",
+        new TextEncoder().encode(requestContextKey(job)),
+      );
+      const hash = Array.from(new Uint8Array(digest), (b) =>
+        b.toString(16).padStart(2, "0"),
+      ).join("");
+      if (hash !== data.contextHash)
+        throw new Error("分析上下文不匹配，请重试");
       if (rev.current !== revision) return;
-      if (result.overview) {
-        nextOverview = result.overview;
-        setOverview(result.overview);
-        setOverviewFresh(true);
-        setLatency(Math.round(performance.now() - start));
+      if (data.overview) {
+        setOverview(data.overview);
+        setLatency(Math.round(performance.now() - started));
       }
-      for (const line of result.lines || []) {
-        nextLines[line.id] = line;
+      const added = Object.fromEntries(
+        (data.lines ?? []).map((l) => [l.id, l]),
+      );
+      nextLines = { ...nextLines, ...added };
+      nextEvents = collectEvents(added, nextEvents);
+      for (const update of data.memoryUpdates ?? []) {
+        const old = nextEvents[update.id];
+        if (old)
+          nextEvents[update.id] = {
+            ...old,
+            status: update.status,
+            resolvedBy:
+              update.status === "resolved"
+                ? (update.evidenceId ?? undefined)
+                : update.status === "uncertain"
+                  ? old.resolvedBy
+                  : undefined,
+          };
       }
-      setLines((old) => ({ ...old, ...nextLines }));
-      setCurrentIds(new Set(Object.keys(nextLines)));
+      savedLines.current = nextLines;
+      savedEvents.current = nextEvents;
+      setLines(nextLines);
+      setEvents(nextEvents);
+      return data;
     }
+    async function safely(job: AnalysisRequest) {
+      try {
+        return await execute(job);
+      } catch (e) {
+        if (!ctrl.signal.aborted) {
+          failed++;
+          setError((e as Error).message);
+        }
+      } finally {
+        if (rev.current === revision)
+          setProgress((p) => ({ ...p, done: ++done }));
+      }
+    }
+    // Initial overview is provisional until historical event extraction completes.
+    await safely(first);
     async function worker() {
       while (jobs.length && rev.current === revision) {
         const job = jobs.shift()!;
-        try {
-          await execute(job);
-        } catch (e) {
-          if (ctrl.signal.aborted) return;
-          failures++;
-          setError((e as Error).message);
-        } finally {
-          if (rev.current === revision)
-            setProgress((p) => ({ ...p, done: ++done }));
-        }
+        // Refresh retrieved evidence as earlier chunks finish extracting events.
+        const positions = job.targetIds.map((id) =>
+          messages.findIndex((m) => m.id === id),
+        );
+        const firstTarget = Math.min(...positions),
+          lastTarget = Math.max(...positions);
+        const revised = boundedContext(
+          messages,
+          Math.max(0, firstTarget - 80),
+          job.task === "self_message"
+            ? lastTarget + 1
+            : Math.min(messages.length, lastTarget + 21),
+          nextEvents,
+          job.task === "self_message",
+        );
+        // Keep deliberately retrieved distant corrections paired with the newest context.
+        if (job.memory?.some((e) => job.targetIds.includes(e.id)))
+          await safely(job);
+        else if (
+          job.targetIds.every((id) => revised.messages.some((m) => m.id === id))
+        )
+          await safely({ ...job, ...revised });
+        else await safely(job);
       }
     }
     await Promise.all([worker(), worker()]);
     if (rev.current !== revision) return;
-    setLines(nextLines);
-    setCurrentIds(new Set(Object.keys(nextLines)));
-    setStatus(failures ? "error" : "complete");
-    if (nextOverview && !failures) {
-      const previous = historyRef.current.at(-1);
-      const s: Snapshot = {
-        revision,
-        messages: structuredClone(messages),
-        relation,
-        lines: nextLines,
-        overview: nextOverview,
-        at: new Date().toISOString(),
-        latencyMs: Math.round(performance.now() - start),
-        source: "live",
-        comparable:
-          !!previous &&
-          previous.relation === relation &&
-          previous.messages.every(
-            (m, i) =>
-              messages[i]?.id === m.id &&
-              messages[i]?.text === m.text &&
-              messages[i]?.sender === m.sender,
-          ),
-      };
-      const same =
-        previous &&
-        contextKey(previous.messages, previous.relation) ===
-          contextKey(messages, relation);
-      historyRef.current = same
-        ? [...historyRef.current.slice(0, -1), s]
-        : [...historyRef.current, s];
-      setHistory(historyRef.current);
+    const final = await safely(
+      overviewJob(messages, relation, revision, nextEvents),
+    );
+    if (rev.current !== revision) return;
+    setOverviewFresh(!!final?.overview && !failed);
+    setStatus(failed ? "error" : "complete");
+    if (final?.overview && !failed) {
+      processed.current = messages.length;
+      setAnalyzedCount(messages.length);
+      setTrend((old) => {
+        const point = {
+          at: new Date().toISOString(),
+          value: final.overview!.affinity.value,
+          count: messages.length,
+        };
+        return old.at(-1)?.count === point.count
+          ? [...old.slice(0, -1), point]
+          : [...old, point];
+      });
     }
   }
   return {
     overview,
     overviewFresh,
     lines,
+    events,
+    trend,
     status,
     error,
     clearError: () => setError(""),
-    history,
     progress,
     latency,
-    currentIds,
+    analyzedCount,
     run,
-    reset,
     cancel,
-    showFixture,
-    meanQuality,
+    reset,
+    restore,
   };
 }

@@ -1,3 +1,5 @@
+import type { MemoryEvent, MemoryUpdate } from "./memory";
+import type { AffinityDimension } from "./affinity";
 export type Relation = "crush" | "new" | "couple";
 export type Message = {
   id: string;
@@ -18,6 +20,8 @@ export type Judgment = {
   probabilities: Record<string, number>;
 };
 export type LineResult = {
+  event?: { kind: MemoryEvent["kind"]; confidence: number };
+  skipped?: string;
   id: string;
   score: Judgment;
   emotions?: Record<string, number>;
@@ -29,7 +33,12 @@ export type LineResult = {
   toneConfidence?: number;
 };
 export type Overview = {
+  memoryEvidenceIds?: string[];
+  contextCount?: number;
   affinity: Judgment;
+  affinityDimensions?: AffinityDimension[];
+  affinityRawValue?: number;
+  boundaryApplied?: boolean;
   stage: string;
   rapport?: Judgment;
   action: string;
@@ -50,6 +59,7 @@ export type Snapshot = {
 };
 export type Task = "overview" | "other_messages" | "self_message";
 export type AnalysisRequest = {
+  memory?: Pick<MemoryEvent, "id" | "kind" | "status" | "resolvedBy">[];
   revision: number;
   relation: Relation;
   messages: Message[];
@@ -57,6 +67,7 @@ export type AnalysisRequest = {
   targetIds: string[];
 };
 export type AnalysisResponse = {
+  memoryUpdates?: MemoryUpdate[];
   revision: number;
   contextHash: string;
   model: string;
@@ -67,7 +78,7 @@ export type AnalysisResponse = {
   latencyMs: number;
 };
 export const MODEL = "jev-1.13.0";
-export const RUBRIC = "crush-2026-09-19.4";
+export const RUBRIC = "crush-2026-09-21.2";
 export const RELATIONS: Record<Relation, string> = {
   crush: "Crush / 暧昧中",
   new: "刚认识",
@@ -173,5 +184,30 @@ export function meanQuality(
   return v.length ? Math.round(v.reduce((a, b) => a + b, 0) / v.length) : null;
 }
 export function contextKey(messages: Message[], relation: Relation) {
-  return JSON.stringify({ model: MODEL, rubric: RUBRIC, relation, messages });
+  return JSON.stringify({
+    model: MODEL,
+    rubric: RUBRIC,
+    relation,
+    messages: messages.map((m) => ({
+      id: m.id,
+      sender: m.sender,
+      text: m.text,
+      timestamp: m.timestamp,
+      kind: m.kind,
+    })),
+  });
+}
+
+export function requestContextKey(input: AnalysisRequest) {
+  return (
+    contextKey(input.messages, input.relation) +
+    JSON.stringify(
+      (input.memory ?? []).map((e) => ({
+        id: e.id,
+        kind: e.kind,
+        status: e.status,
+        resolvedBy: e.resolvedBy,
+      })),
+    )
+  );
 }

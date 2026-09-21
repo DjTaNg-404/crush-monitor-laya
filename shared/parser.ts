@@ -1,3 +1,4 @@
+import { MAX_MESSAGES, MAX_TEXT_CHARS } from "./limits";
 import type { Message, Parsed } from "./types";
 const time =
   "(?:\\d{4}[-/]\\d{1,2}[-/]\\d{1,2}\\s+)?\\d{1,2}:\\d{2}(?::\\d{2})?";
@@ -133,7 +134,13 @@ export function mergeMessages(
     };
   let overlap = 0;
   for (let n = Math.min(old.length, incoming.length); n > 0; n--) {
-    if (old.slice(-n).every((m, i) => equal(m, incoming[i]))) {
+    let matched = true;
+    for (let i = 0; i < n; i++)
+      if (!equal(old[old.length - n + i], incoming[i])) {
+        matched = false;
+        break;
+      }
+    if (matched) {
       overlap = n;
       break;
     }
@@ -192,8 +199,8 @@ export function mergeMessages(
 }
 export function withinScope(messages: Message[]) {
   return (
-    messages.length <= 120 &&
-    Array.from(messages.map((m) => m.text).join("")).length <= 24000
+    messages.length <= MAX_MESSAGES &&
+    Array.from(messages.map((m) => m.text).join("")).length <= MAX_TEXT_CHARS
   );
 }
 export function recentScope(messages: Message[]) {
@@ -201,7 +208,7 @@ export function recentScope(messages: Message[]) {
   let chars = 0;
   for (const m of [...messages].reverse()) {
     const len = Array.from(m.text).length;
-    if (result.length === 120 || chars + len > 24000) break;
+    if (result.length === MAX_MESSAGES || chars + len > MAX_TEXT_CHARS) break;
     result.unshift(m);
     chars += len;
   }
