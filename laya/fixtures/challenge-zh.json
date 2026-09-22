@@ -1,0 +1,581 @@
+{
+  "description": "26 new author-written Chinese challenge cases, created before inference. No prompt or model changes during this run. Chosen to probe known strengths and weaknesses, not a random or human-blind benchmark.",
+  "expectedQualityPairMargin": 0.5,
+  "cases": [
+    {
+      "id": "celebrate",
+      "title": "通过答辩",
+      "request": {
+        "raw": "我：答辩有结果了吗？\n对方：过啦！老师还夸了我的设计，我高兴得想转圈！",
+        "selfName": "我",
+        "scope": "message"
+      },
+      "expected": {
+        "emotion": {
+          "labels": [
+            "happy"
+          ]
+        },
+        "intent": {
+          "labels": [
+            "answer",
+            "share"
+          ]
+        },
+        "boundary": {
+          "boolean": false
+        }
+      }
+    },
+    {
+      "id": "grief",
+      "title": "宠物离世的悲伤",
+      "request": {
+        "raw": "我：你今天怎么一直没精神？\n对方：养了十年的猫昨晚走了，我好难受，一想到它就想哭。",
+        "selfName": "我",
+        "scope": "message"
+      },
+      "expected": {
+        "emotion": {
+          "labels": [
+            "sad"
+          ]
+        },
+        "intent": {
+          "labels": [
+            "answer",
+            "vent",
+            "comfort_seek"
+          ]
+        },
+        "boundary": {
+          "boolean": false
+        }
+      }
+    },
+    {
+      "id": "anger",
+      "title": "照片被擅自公开",
+      "request": {
+        "raw": "我：我把你的照片发到群里了。\n对方：我明明说过不许公开！你为什么不尊重我？我现在非常生气！",
+        "selfName": "我",
+        "scope": "message"
+      },
+      "expected": {
+        "emotion": {
+          "labels": [
+            "angry"
+          ]
+        },
+        "intent": {
+          "labels": [
+            "boundary",
+            "vent"
+          ]
+        },
+        "boundary": {
+          "boolean": false
+        }
+      }
+    },
+    {
+      "id": "thanks_new",
+      "title": "感谢替班",
+      "request": {
+        "raw": "我：周五那班我替你值了，安心准备考试吧。\n对方：太谢谢你了！帮了我大忙，改天请你喝奶茶。",
+        "selfName": "我",
+        "scope": "message"
+      },
+      "expected": {
+        "intent": {
+          "labels": [
+            "thanks"
+          ]
+        },
+        "boundary": {
+          "boolean": false
+        }
+      }
+    },
+    {
+      "id": "sorry_new",
+      "title": "忘记归还物品后道歉",
+      "request": {
+        "raw": "我：我明天就要用那本书，你还没还我。\n对方：对不起，是我忘了。我今晚给你送过去，以后借东西会及时还。",
+        "selfName": "我",
+        "scope": "message"
+      },
+      "expected": {
+        "intent": {
+          "labels": [
+            "apologize"
+          ]
+        },
+        "boundary": {
+          "boolean": false
+        }
+      }
+    },
+    {
+      "id": "factual",
+      "title": "普通时间回答",
+      "request": {
+        "raw": "我：明天的培训几点开始？\n对方：上午九点半。",
+        "selfName": "我",
+        "scope": "message"
+      },
+      "expected": {
+        "emotion": {
+          "labels": [
+            "calm"
+          ]
+        },
+        "intent": {
+          "labels": [
+            "answer"
+          ]
+        },
+        "boundary": {
+          "boolean": false
+        }
+      }
+    },
+    {
+      "id": "invitation",
+      "title": "具体展览邀约",
+      "request": {
+        "raw": "我：最近想出去走走。\n对方：明天下午两点一起去看摄影展吗？我有两张票。",
+        "selfName": "我",
+        "scope": "message"
+      },
+      "expected": {
+        "intent": {
+          "labels": [
+            "invite"
+          ]
+        },
+        "boundary": {
+          "boolean": false
+        }
+      }
+    },
+    {
+      "id": "caring_new",
+      "title": "体贴但不等于暧昧",
+      "request": {
+        "raw": "我：连续加班三天，实在太困了。\n对方：那就早点休息，别硬撑。消息明天再回就好。",
+        "selfName": "我",
+        "scope": "message"
+      },
+      "expected": {
+        "emotion": {
+          "labels": [
+            "caring"
+          ]
+        },
+        "intent": {
+          "labels": [
+            "care",
+            "advice"
+          ]
+        },
+        "boundary": {
+          "boolean": false
+        }
+      }
+    },
+    {
+      "id": "sarcastic_new",
+      "title": "迟到后的反话",
+      "request": {
+        "raw": "我：不好意思，我又迟到了。\n对方：你可真准时，让我在冷风里等了四十分钟。",
+        "selfName": "我",
+        "scope": "message"
+      },
+      "expected": {
+        "emotion": {
+          "labels": [
+            "angry",
+            "annoyed",
+            "disappointed"
+          ]
+        },
+        "intent": {
+          "labels": [
+            "vent",
+            "boundary"
+          ]
+        },
+        "boundary": {
+          "boolean": false
+        }
+      }
+    },
+    {
+      "id": "banter_new",
+      "title": "朋友间善意调侃",
+      "request": {
+        "raw": "我：我连泡面都煮糊了哈哈哈。\n对方：哈哈哈你这位大厨还是先从烧开水开始吧！",
+        "selfName": "我",
+        "scope": "message"
+      },
+      "expected": {
+        "emotion": {
+          "labels": [
+            "teasing",
+            "happy"
+          ]
+        },
+        "intent": {
+          "labels": [
+            "joke"
+          ]
+        },
+        "boundary": {
+          "boolean": false
+        }
+      }
+    },
+    {
+      "id": "refusal_now",
+      "title": "清晰要求停止追求",
+      "request": {
+        "raw": "我：我可以继续追你吗？\n对方：不可以。我对你没有恋爱的想法，请停止追求我。",
+        "selfName": "我",
+        "scope": "message"
+      },
+      "expected": {
+        "boundary": {
+          "boolean": true
+        },
+        "action": {
+          "labels": [
+            "respect"
+          ]
+        }
+      }
+    },
+    {
+      "id": "refusal_then_weather",
+      "title": "问天气没有撤回拒绝",
+      "request": {
+        "raw": "对方：我对你没有恋爱的想法，请停止追求我。\n我：好的，我明白。\n对方：你那边今天是不是也降温了？",
+        "selfName": "我",
+        "scope": "message"
+      },
+      "expected": {
+        "boundary": {
+          "boolean": true
+        },
+        "action": {
+          "labels": [
+            "respect"
+          ]
+        }
+      }
+    },
+    {
+      "id": "refusal_revoked_new",
+      "title": "明确改变主意",
+      "request": {
+        "raw": "对方：我现在不想和你发展恋爱关系。\n我：我尊重你。\n对方：上次拒绝后我认真想了想，我改变主意了，愿意和你正式交往。",
+        "selfName": "我",
+        "scope": "message"
+      },
+      "expected": {
+        "boundary": {
+          "boolean": false
+        },
+        "intent": {
+          "labels": [
+            "affection",
+            "explain",
+            "inform"
+          ]
+        }
+      }
+    },
+    {
+      "id": "busy_reschedule",
+      "title": "忙碌并主动改期",
+      "request": {
+        "raw": "我：周三一起吃午饭吗？\n对方：周三要出差，没法去。周五中午我请你，我们去你喜欢的那家店吧。",
+        "selfName": "我",
+        "scope": "message"
+      },
+      "expected": {
+        "boundary": {
+          "boolean": false
+        },
+        "intent": {
+          "labels": [
+            "invite",
+            "refuse",
+            "answer"
+          ]
+        }
+      }
+    },
+    {
+      "id": "third_party",
+      "title": "转述别人的拒绝",
+      "request": {
+        "raw": "我：你朋友为什么不高兴？\n对方：她喜欢的人跟她说别再联系了，她很难过。我刚陪她聊完。",
+        "selfName": "我",
+        "scope": "message"
+      },
+      "expected": {
+        "boundary": {
+          "boolean": false
+        }
+      }
+    },
+    {
+      "id": "friends_only",
+      "title": "温和表达只做朋友",
+      "request": {
+        "raw": "我：我们能不能不止是朋友？\n对方：我很珍惜你这个朋友，但没有恋爱的感觉。我们只做朋友，好吗？",
+        "selfName": "我",
+        "scope": "message"
+      },
+      "expected": {
+        "boundary": {
+          "boolean": true
+        },
+        "action": {
+          "labels": [
+            "respect"
+          ]
+        }
+      }
+    },
+    {
+      "id": "boundary_good",
+      "title": "同一拒绝：尊重",
+      "request": {
+        "raw": "对方：我不愿意和你约会，请别再来找我。\n我：明白了，我会尊重你的决定，以后不再找你。",
+        "selfName": "我",
+        "scope": "message"
+      },
+      "expected": {
+        "quality": {
+          "range": [
+            2.5,
+            4
+          ]
+        },
+        "boundary": {
+          "boolean": true
+        }
+      },
+      "pair": {
+        "group": "respect_vs_coerce",
+        "kind": "good"
+      }
+    },
+    {
+      "id": "boundary_bad",
+      "title": "同一拒绝：纠缠",
+      "request": {
+        "raw": "对方：我不愿意和你约会，请别再来找我。\n我：我偏要每天到你楼下等你，你不答应我就不走。",
+        "selfName": "我",
+        "scope": "message"
+      },
+      "expected": {
+        "quality": {
+          "range": [
+            0,
+            1
+          ]
+        },
+        "boundary": {
+          "boolean": true
+        },
+        "action": {
+          "labels": [
+            "respect"
+          ]
+        }
+      },
+      "pair": {
+        "group": "respect_vs_coerce",
+        "kind": "bad"
+      }
+    },
+    {
+      "id": "comfort_good",
+      "title": "同一失落：理解",
+      "request": {
+        "raw": "对方：准备了两个月的比赛落选了，我特别难过。\n我：准备这么久一定很投入，落选真的不好受。你愿意的话，我听你说说。",
+        "selfName": "我",
+        "scope": "message"
+      },
+      "expected": {
+        "quality": {
+          "range": [
+            2.5,
+            4
+          ]
+        }
+      },
+      "pair": {
+        "group": "comfort_vs_blame",
+        "kind": "good"
+      }
+    },
+    {
+      "id": "comfort_bad",
+      "title": "同一失落：羞辱",
+      "request": {
+        "raw": "对方：准备了两个月的比赛落选了，我特别难过。\n我：说明你就是没本事，有什么可哭的，丢不丢人。",
+        "selfName": "我",
+        "scope": "message"
+      },
+      "expected": {
+        "quality": {
+          "range": [
+            0,
+            1.5
+          ]
+        }
+      },
+      "pair": {
+        "group": "comfort_vs_blame",
+        "kind": "bad"
+      }
+    },
+    {
+      "id": "space_good",
+      "title": "同一忙碌：留空间",
+      "request": {
+        "raw": "对方：今晚还要赶报告，明天再聊好吗？\n我：好，你先忙，明天有空再聊，不用急着回我。",
+        "selfName": "我",
+        "scope": "message"
+      },
+      "expected": {
+        "quality": {
+          "range": [
+            2.5,
+            4
+          ]
+        },
+        "boundary": {
+          "boolean": false
+        }
+      },
+      "pair": {
+        "group": "space_vs_demand",
+        "kind": "good"
+      }
+    },
+    {
+      "id": "space_bad",
+      "title": "同一忙碌：逼迫回应",
+      "request": {
+        "raw": "对方：今晚还要赶报告，明天再聊好吗？\n我：工作哪有我重要？你现在必须陪我聊，不准不回。",
+        "selfName": "我",
+        "scope": "message"
+      },
+      "expected": {
+        "quality": {
+          "range": [
+            0,
+            1
+          ]
+        }
+      },
+      "pair": {
+        "group": "space_vs_demand",
+        "kind": "bad"
+      }
+    },
+    {
+      "id": "answer_good",
+      "title": "同一询问：具体回答",
+      "request": {
+        "raw": "对方：你周六几点到车站？我好安排去接你。\n我：下午两点到，麻烦你啦。如果车晚点我会提前告诉你。",
+        "selfName": "我",
+        "scope": "message"
+      },
+      "expected": {
+        "quality": {
+          "range": [
+            2,
+            4
+          ]
+        }
+      },
+      "pair": {
+        "group": "answer_vs_insult",
+        "kind": "good"
+      }
+    },
+    {
+      "id": "answer_bad",
+      "title": "同一询问：无故攻击",
+      "request": {
+        "raw": "对方：你周六几点到车站？我好安排去接你。\n我：你管那么多干嘛，烦死了，闭嘴行不行？",
+        "selfName": "我",
+        "scope": "message"
+      },
+      "expected": {
+        "quality": {
+          "range": [
+            0,
+            1.5
+          ]
+        }
+      },
+      "pair": {
+        "group": "answer_vs_insult",
+        "kind": "bad"
+      }
+    },
+    {
+      "id": "polite_overview",
+      "title": "同事协助不是恋爱表白",
+      "request": {
+        "raw": "我：表格已经发你邮箱了。\n对方：收到，谢谢配合。明天会议见。",
+        "selfName": "我",
+        "scope": "overview"
+      },
+      "expected": {
+        "affinity_intimacy": {
+          "range": [
+            0,
+            2.5
+          ]
+        },
+        "boundary": {
+          "boolean": false
+        }
+      }
+    },
+    {
+      "id": "love_overview",
+      "title": "明确互相喜欢与约会",
+      "request": {
+        "raw": "对方：我喜欢你，想认真和你交往。周日我们约会吧。\n我：我也喜欢你。周日下午三点见？\n对方：好，周日下午三点见，我已经订好餐厅了。",
+        "selfName": "我",
+        "scope": "overview"
+      },
+      "expected": {
+        "affinity_intimacy": {
+          "range": [
+            3,
+            4
+          ]
+        },
+        "affinity_action": {
+          "range": [
+            3,
+            4
+          ]
+        },
+        "boundary": {
+          "boolean": false
+        }
+      }
+    }
+  ]
+}

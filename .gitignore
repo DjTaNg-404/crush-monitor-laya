@@ -6,3 +6,9 @@ dist/
 artifacts/
 
 .runtime/
+
+__pycache__/
+*.py[cod]
+*.safetensors
+*.gguf
+.DS_Store

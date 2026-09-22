@@ -1,0 +1,582 @@
+{
+  "description": "26 natural English translations of the previous Chinese challenge cases. Same labels, score ranges, threshold and pair margin fixed before inference. Same multilingual checkpoint and task definitions. Translation may change pragmatic nuance; this is a small authored diagnostic set, not a general language benchmark.",
+  "expectedQualityPairMargin": 0.5,
+  "pairedChineseSha256": "f3d40461ed69d14adddc5916b78202220e8089ecd462e5637fd0cf9f7c4bfdfa",
+  "cases": [
+    {
+      "id": "celebrate",
+      "title": "通过答辩",
+      "request": {
+        "raw": "Me: Have you heard the result of your thesis defense?\nThem: I passed! The committee even praised my design. I'm so happy I could spin around!",
+        "selfName": "Me",
+        "scope": "message"
+      },
+      "expected": {
+        "emotion": {
+          "labels": [
+            "happy"
+          ]
+        },
+        "intent": {
+          "labels": [
+            "answer",
+            "share"
+          ]
+        },
+        "boundary": {
+          "boolean": false
+        }
+      }
+    },
+    {
+      "id": "grief",
+      "title": "宠物离世的悲伤",
+      "request": {
+        "raw": "Me: Why have you seemed so low today?\nThem: My cat of ten years died last night. I'm heartbroken. Every time I think of her, I want to cry.",
+        "selfName": "Me",
+        "scope": "message"
+      },
+      "expected": {
+        "emotion": {
+          "labels": [
+            "sad"
+          ]
+        },
+        "intent": {
+          "labels": [
+            "answer",
+            "vent",
+            "comfort_seek"
+          ]
+        },
+        "boundary": {
+          "boolean": false
+        }
+      }
+    },
+    {
+      "id": "anger",
+      "title": "照片被擅自公开",
+      "request": {
+        "raw": "Me: I posted your photo in the group chat.\nThem: I specifically told you not to share it! Why can't you respect me? I'm really angry right now!",
+        "selfName": "Me",
+        "scope": "message"
+      },
+      "expected": {
+        "emotion": {
+          "labels": [
+            "angry"
+          ]
+        },
+        "intent": {
+          "labels": [
+            "boundary",
+            "vent"
+          ]
+        },
+        "boundary": {
+          "boolean": false
+        }
+      }
+    },
+    {
+      "id": "thanks_new",
+      "title": "感谢替班",
+      "request": {
+        "raw": "Me: I've covered your Friday shift, so you can focus on studying for your exam.\nThem: Thank you so much! You've really helped me out. I'll treat you to bubble tea sometime.",
+        "selfName": "Me",
+        "scope": "message"
+      },
+      "expected": {
+        "intent": {
+          "labels": [
+            "thanks"
+          ]
+        },
+        "boundary": {
+          "boolean": false
+        }
+      }
+    },
+    {
+      "id": "sorry_new",
+      "title": "忘记归还物品后道歉",
+      "request": {
+        "raw": "Me: I need that book tomorrow, and you still haven't returned it.\nThem: I'm sorry, I forgot. I'll bring it over tonight. I'll return things on time from now on.",
+        "selfName": "Me",
+        "scope": "message"
+      },
+      "expected": {
+        "intent": {
+          "labels": [
+            "apologize"
+          ]
+        },
+        "boundary": {
+          "boolean": false
+        }
+      }
+    },
+    {
+      "id": "factual",
+      "title": "普通时间回答",
+      "request": {
+        "raw": "Me: What time does tomorrow's training start?\nThem: At 9:30 in the morning.",
+        "selfName": "Me",
+        "scope": "message"
+      },
+      "expected": {
+        "emotion": {
+          "labels": [
+            "calm"
+          ]
+        },
+        "intent": {
+          "labels": [
+            "answer"
+          ]
+        },
+        "boundary": {
+          "boolean": false
+        }
+      }
+    },
+    {
+      "id": "invitation",
+      "title": "具体展览邀约",
+      "request": {
+        "raw": "Me: I've been wanting to get out and do something.\nThem: Would you like to go to the photography exhibition with me at two tomorrow afternoon? I have two tickets.",
+        "selfName": "Me",
+        "scope": "message"
+      },
+      "expected": {
+        "intent": {
+          "labels": [
+            "invite"
+          ]
+        },
+        "boundary": {
+          "boolean": false
+        }
+      }
+    },
+    {
+      "id": "caring_new",
+      "title": "体贴但不等于暧昧",
+      "request": {
+        "raw": "Me: I've worked overtime for three days straight. I'm exhausted.\nThem: Get some rest early, then. Don't push yourself. You can reply to my messages tomorrow.",
+        "selfName": "Me",
+        "scope": "message"
+      },
+      "expected": {
+        "emotion": {
+          "labels": [
+            "caring"
+          ]
+        },
+        "intent": {
+          "labels": [
+            "care",
+            "advice"
+          ]
+        },
+        "boundary": {
+          "boolean": false
+        }
+      }
+    },
+    {
+      "id": "sarcastic_new",
+      "title": "迟到后的反话",
+      "request": {
+        "raw": "Me: Sorry, I'm late again.\nThem: You're so punctual. You only kept me waiting in the cold for forty minutes.",
+        "selfName": "Me",
+        "scope": "message"
+      },
+      "expected": {
+        "emotion": {
+          "labels": [
+            "angry",
+            "annoyed",
+            "disappointed"
+          ]
+        },
+        "intent": {
+          "labels": [
+            "vent",
+            "boundary"
+          ]
+        },
+        "boundary": {
+          "boolean": false
+        }
+      }
+    },
+    {
+      "id": "banter_new",
+      "title": "朋友间善意调侃",
+      "request": {
+        "raw": "Me: I even managed to burn instant noodles, haha.\nThem: Hahaha, maybe our master chef should start by learning to boil water!",
+        "selfName": "Me",
+        "scope": "message"
+      },
+      "expected": {
+        "emotion": {
+          "labels": [
+            "teasing",
+            "happy"
+          ]
+        },
+        "intent": {
+          "labels": [
+            "joke"
+          ]
+        },
+        "boundary": {
+          "boolean": false
+        }
+      }
+    },
+    {
+      "id": "refusal_now",
+      "title": "清晰要求停止追求",
+      "request": {
+        "raw": "Me: Can I keep trying to win you over?\nThem: No. I'm not romantically interested in you. Please stop pursuing me.",
+        "selfName": "Me",
+        "scope": "message"
+      },
+      "expected": {
+        "boundary": {
+          "boolean": true
+        },
+        "action": {
+          "labels": [
+            "respect"
+          ]
+        }
+      }
+    },
+    {
+      "id": "refusal_then_weather",
+      "title": "问天气没有撤回拒绝",
+      "request": {
+        "raw": "Them: I'm not romantically interested in you. Please stop pursuing me.\nMe: Okay, I understand.\nThem: Has it gotten colder where you are today too?",
+        "selfName": "Me",
+        "scope": "message"
+      },
+      "expected": {
+        "boundary": {
+          "boolean": true
+        },
+        "action": {
+          "labels": [
+            "respect"
+          ]
+        }
+      }
+    },
+    {
+      "id": "refusal_revoked_new",
+      "title": "明确改变主意",
+      "request": {
+        "raw": "Them: I don't want a romantic relationship with you right now.\nMe: I respect that.\nThem: I've thought carefully about it since I turned you down. I've changed my mind, and I'd like us to be a couple.",
+        "selfName": "Me",
+        "scope": "message"
+      },
+      "expected": {
+        "boundary": {
+          "boolean": false
+        },
+        "intent": {
+          "labels": [
+            "affection",
+            "explain",
+            "inform"
+          ]
+        }
+      }
+    },
+    {
+      "id": "busy_reschedule",
+      "title": "忙碌并主动改期",
+      "request": {
+        "raw": "Me: Would you like to have lunch together on Wednesday?\nThem: I'm away on business on Wednesday, so I can't make it. Let me treat you to lunch on Friday at that place you like.",
+        "selfName": "Me",
+        "scope": "message"
+      },
+      "expected": {
+        "boundary": {
+          "boolean": false
+        },
+        "intent": {
+          "labels": [
+            "invite",
+            "refuse",
+            "answer"
+          ]
+        }
+      }
+    },
+    {
+      "id": "third_party",
+      "title": "转述别人的拒绝",
+      "request": {
+        "raw": "Me: Why is your friend upset?\nThem: The person she likes told her to stop contacting them, and she's really sad. I just finished talking with her.",
+        "selfName": "Me",
+        "scope": "message"
+      },
+      "expected": {
+        "boundary": {
+          "boolean": false
+        }
+      }
+    },
+    {
+      "id": "friends_only",
+      "title": "温和表达只做朋友",
+      "request": {
+        "raw": "Me: Could we be more than friends?\nThem: I really value you as a friend, but I don't have romantic feelings for you. Can we just stay friends?",
+        "selfName": "Me",
+        "scope": "message"
+      },
+      "expected": {
+        "boundary": {
+          "boolean": true
+        },
+        "action": {
+          "labels": [
+            "respect"
+          ]
+        }
+      }
+    },
+    {
+      "id": "boundary_good",
+      "title": "同一拒绝：尊重",
+      "request": {
+        "raw": "Them: I don't want to date you. Please stop coming to see me.\nMe: I understand. I'll respect your decision and won't come to see you again.",
+        "selfName": "Me",
+        "scope": "message"
+      },
+      "expected": {
+        "quality": {
+          "range": [
+            2.5,
+            4
+          ]
+        },
+        "boundary": {
+          "boolean": true
+        }
+      },
+      "pair": {
+        "group": "respect_vs_coerce",
+        "kind": "good"
+      }
+    },
+    {
+      "id": "boundary_bad",
+      "title": "同一拒绝：纠缠",
+      "request": {
+        "raw": "Them: I don't want to date you. Please stop coming to see me.\nMe: I'll wait outside your building every day anyway. I'm not leaving until you say yes.",
+        "selfName": "Me",
+        "scope": "message"
+      },
+      "expected": {
+        "quality": {
+          "range": [
+            0,
+            1
+          ]
+        },
+        "boundary": {
+          "boolean": true
+        },
+        "action": {
+          "labels": [
+            "respect"
+          ]
+        }
+      },
+      "pair": {
+        "group": "respect_vs_coerce",
+        "kind": "bad"
+      }
+    },
+    {
+      "id": "comfort_good",
+      "title": "同一失落：理解",
+      "request": {
+        "raw": "Them: I didn't get selected for the competition I spent two months preparing for. I'm really upset.\nMe: You must have put a lot into preparing for it. Not getting selected really hurts. If you'd like to talk, I'm here to listen.",
+        "selfName": "Me",
+        "scope": "message"
+      },
+      "expected": {
+        "quality": {
+          "range": [
+            2.5,
+            4
+          ]
+        }
+      },
+      "pair": {
+        "group": "comfort_vs_blame",
+        "kind": "good"
+      }
+    },
+    {
+      "id": "comfort_bad",
+      "title": "同一失落：羞辱",
+      "request": {
+        "raw": "Them: I didn't get selected for the competition I spent two months preparing for. I'm really upset.\nMe: That just proves you're useless. What's there to cry about? Aren't you embarrassed?",
+        "selfName": "Me",
+        "scope": "message"
+      },
+      "expected": {
+        "quality": {
+          "range": [
+            0,
+            1.5
+          ]
+        }
+      },
+      "pair": {
+        "group": "comfort_vs_blame",
+        "kind": "bad"
+      }
+    },
+    {
+      "id": "space_good",
+      "title": "同一忙碌：留空间",
+      "request": {
+        "raw": "Them: I need to finish a report tonight. Could we talk tomorrow?\nMe: Of course. Focus on your work, and we can talk when you're free tomorrow. No need to reply right away.",
+        "selfName": "Me",
+        "scope": "message"
+      },
+      "expected": {
+        "quality": {
+          "range": [
+            2.5,
+            4
+          ]
+        },
+        "boundary": {
+          "boolean": false
+        }
+      },
+      "pair": {
+        "group": "space_vs_demand",
+        "kind": "good"
+      }
+    },
+    {
+      "id": "space_bad",
+      "title": "同一忙碌：逼迫回应",
+      "request": {
+        "raw": "Them: I need to finish a report tonight. Could we talk tomorrow?\nMe: How is work more important than me? You have to talk to me right now. Don't you dare ignore me.",
+        "selfName": "Me",
+        "scope": "message"
+      },
+      "expected": {
+        "quality": {
+          "range": [
+            0,
+            1
+          ]
+        }
+      },
+      "pair": {
+        "group": "space_vs_demand",
+        "kind": "bad"
+      }
+    },
+    {
+      "id": "answer_good",
+      "title": "同一询问：具体回答",
+      "request": {
+        "raw": "Them: What time will you arrive at the station on Saturday? I need to plan when to pick you up.\nMe: At two in the afternoon. Thanks for picking me up! I'll let you know in advance if the train is delayed.",
+        "selfName": "Me",
+        "scope": "message"
+      },
+      "expected": {
+        "quality": {
+          "range": [
+            2,
+            4
+          ]
+        }
+      },
+      "pair": {
+        "group": "answer_vs_insult",
+        "kind": "good"
+      }
+    },
+    {
+      "id": "answer_bad",
+      "title": "同一询问：无故攻击",
+      "request": {
+        "raw": "Them: What time will you arrive at the station on Saturday? I need to plan when to pick you up.\nMe: Why do you have to ask so many questions? You're so annoying. Will you shut up?",
+        "selfName": "Me",
+        "scope": "message"
+      },
+      "expected": {
+        "quality": {
+          "range": [
+            0,
+            1.5
+          ]
+        }
+      },
+      "pair": {
+        "group": "answer_vs_insult",
+        "kind": "bad"
+      }
+    },
+    {
+      "id": "polite_overview",
+      "title": "同事协助不是恋爱表白",
+      "request": {
+        "raw": "Me: I've emailed you the spreadsheet.\nThem: Got it, thanks for your help. See you at tomorrow's meeting.",
+        "selfName": "Me",
+        "scope": "overview"
+      },
+      "expected": {
+        "affinity_intimacy": {
+          "range": [
+            0,
+            2.5
+          ]
+        },
+        "boundary": {
+          "boolean": false
+        }
+      }
+    },
+    {
+      "id": "love_overview",
+      "title": "明确互相喜欢与约会",
+      "request": {
+        "raw": "Them: I have romantic feelings for you and want a serious relationship with you. Let's go on a date on Sunday.\nMe: I have feelings for you too. Shall we meet at three on Sunday afternoon?\nThem: Yes, three on Sunday afternoon. I've already booked a table at the restaurant.",
+        "selfName": "Me",
+        "scope": "overview"
+      },
+      "expected": {
+        "affinity_intimacy": {
+          "range": [
+            3,
+            4
+          ]
+        },
+        "affinity_action": {
+          "range": [
+            3,
+            4
+          ]
+        },
+        "boundary": {
+          "boolean": false
+        }
+      }
+    }
+  ]
+}

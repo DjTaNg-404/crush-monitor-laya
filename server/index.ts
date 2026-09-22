@@ -3,6 +3,8 @@ import express from "express";
 import { fileURLToPath } from "node:url";
 import { join, dirname } from "node:path";
 import { analyze, requestSchema } from "./analysis";
+import { layaValidationRouter } from "./layaValidation";
+import { health } from "./layaClient";
 const app = express();
 app.disable("x-powered-by");
 app.use(express.json({ limit: "512kb" }));
@@ -12,12 +14,25 @@ app.use((_req, res, next) => {
   res.setHeader("Cache-Control", "no-store");
   next();
 });
-app.get("/api/health", (_req, res) =>
-  res.json({
-    configured: Boolean(process.env.TYPESAFE_API_KEY),
-    model: "jev-1.13.0",
-  }),
+app.use("/api/laya", layaValidationRouter);
+app.get("/laya-validation", (_req, res) =>
+  res.sendFile(
+    fileURLToPath(new URL("../public/laya-validation.html", import.meta.url)),
+  ),
 );
+app.get("/api/health", async (_req, res) => {
+  try {
+    res.json(await health());
+  } catch {
+    res
+      .status(503)
+      .json({
+        configured: false,
+        model: "laya-multilingual",
+        error: "本地 Laya 尚未启动，请运行 npm start",
+      });
+  }
+});
 let calls = 0;
 let windowAt = Date.now();
 let active = 0;
@@ -35,12 +50,6 @@ app.post("/api/analyze", async (req, res) => {
   const valid = requestSchema.safeParse(req.body);
   if (!valid.success) {
     res.status(400).json({ error: "聊天结构或长度不符合要求，请校正后重试" });
-    return;
-  }
-  if (!process.env.TYPESAFE_API_KEY) {
-    res
-      .status(503)
-      .json({ error: "分析服务尚未配置，请在服务端设置 TYPESAFE_API_KEY" });
     return;
   }
   const now = Date.now();
@@ -79,17 +88,14 @@ app.post("/api/analyze", async (req, res) => {
   } catch (error) {
     const code = Number((error as { status?: number }).status) || 502;
     const messages: Record<number, string> = {
-      400: "Jev 输入超过模型容量，请减少聊天条数或缩小正文范围后重试",
-      401: "Jev 认证失败，请检查服务端 API 配置",
-      403: "当前 API 账号没有调用权限",
-      422: "模型无法处理当前输入，请缩小聊天范围重试",
-      429: "Jev 正忙，请稍后重试",
-      529: "Jev 暂时繁忙，请重试",
+      422: "必要上下文超过 Laya 容量，请缩短单条消息或分段分析。关键证据未被截断。",
+      429: "本地 Laya 正忙，请稍后重试",
     };
     if (!res.headersSent && !controller.signal.aborted)
       res.status(code >= 400 && code < 600 ? code : 502).json({
         error:
-          messages[code] || "分析未完成，可能是网络超时。已保留聊天，可重试。",
+          messages[code] ||
+          "本地模型分析未完成，请检查启动终端。已保留聊天，可重试。",
       });
   } finally {
     active--;
@@ -115,6 +121,6 @@ app.use(
 const port = Number(process.env.PORT || 3178);
 app.listen(port, process.env.HOST || "127.0.0.1", () =>
   console.log(
-    `Crush API: http://${process.env.HOST || "127.0.0.1"}:${port} · key ${process.env.TYPESAFE_API_KEY ? "configured" : "missing"}`,
+    `Crush API: http://${process.env.HOST || "127.0.0.1"}:${port} · local Laya`,
   ),
 );

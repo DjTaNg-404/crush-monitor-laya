@@ -1,105 +1,63 @@
-# Crush Monitor
+# Crush Monitor · Local Laya
 
-[简体中文](README.md) · English
+[中文](README.md)
 
-A Jev-powered tool for looking at conversations with your crush or partner. It helps you make sense of emotions and intentions, and spot replies you could have worded better.
+Paste a two-person conversation to inspect emotion, intent, reply quality, six affinity dimensions and suggested next steps. Supports WeChat, QQ, WhatsApp and `Name: message` transcripts, incremental imports, historical evidence and browser-local persistence.
 
-AI doesn't know your relationship or what happens outside the chat. Take the results lightly—as another perspective. Your own judgment and an honest conversation still matter more.
+The **main application runs local Laya inference**. No Jev key or cloud model is required. This is an experimental interpretation tool: scores do not establish someone's feelings. Laya classifies and scores; it does not generate replies.
 
-## Features
+## Quick start
 
-- **WeChat-style conversation view:** analysis sits beneath each message.
-- **Emotions and intentions:** the top three probabilities from 12 emotion and 35 intention categories.
-- **Affection score and reply grades:** a conversation-level score, SSS–D grades for your replies, and suggested next steps.
-- **Ongoing analysis:** paste more messages to continue. Overlapping excerpts are detected, long conversations run in batches, and results survive a page refresh.
-- **Run locally with your own key:** use your own TypeSafe account and API credits. No hosted deployment required.
+Install Git, Node.js 22.12+ (24 recommended), and [uv](https://docs.astral.sh/uv/getting-started/installation/) or Python **3.12**. With uv, setup can install Python automatically.
 
-The interface and analysis labels are currently in Chinese. This README provides English setup instructions; it does not add an English UI.
-
-## Why Jev?
-
-Jev is TypeSafe's model for structured judgments, returning classifications, scores and probabilities. This app needs short, per-message assessments rather than long generated answers. Emotion and intention judgments can also run in parallel within a request.
-
-- [Launch post by founder Diogo Almeida](https://x.com/CompleteSkeptic/status/2099925682726002904)
-- [Official introduction](https://typesafe.ai/blog/introducing-system-one-models-and-jev)
-- [Get an API key](https://console.typesafe.ai/)
-
-## Run locally
-
-Install Node.js 22.12+ and get a TypeSafe API key. Download or clone this repository, then run these commands in the project directory. The same commands work on macOS, Windows and Linux.
-
-```sh
+```bash
+git clone https://github.com/DjTaNg-404/crush-monitor-laya.git
+cd crush-monitor-laya
 npm ci
 npm run setup
-```
-
-Edit the generated `.env`:
-
-```dotenv
-TYPESAFE_API_KEY=your_api_key
-PORT=3178
-HOST=127.0.0.1
-```
-
-Build and start:
-
-```sh
-npm run build
 npm start
 ```
 
-Open **http://127.0.0.1:3178/** and leave the terminal running. Next time, just run `npm start`. Restart after changing your key.
+Open **http://127.0.0.1:3178**. Startup builds the UI, starts Laya, waits for readiness and starts the API. Ctrl+C stops the services together. Subsequent launches only need `npm start`.
 
-## Usage
+Setup preserves `.env`, creates `.runtime/venv`, installs platform dependencies and downloads only the pinned multilingual checkpoint (~615 MiB of weights). Everything is cached under `.runtime/`. Installation needs network access; inference runs offline. Models, environments, credentials and private conversations are excluded from Git.
 
-1. Copy your conversation, or open a text export and copy its contents. Paste into the input field.
-2. Select your own name and click **开始分析** (Analyze). Relationship settings are available in **聊天设置** (Chat settings).
-3. Read the emotion, intention and reply labels. Click a label for details.
-4. Paste new messages to continue the conversation.
+- **Apple Silicon / macOS 14+**: MLX GPU / FP16, tested on Apple Silicon.
+- **Linux, Windows, Intel Mac**: official Laya + PyTorch CPU / FP32. CPU inference has been tested on macOS; other operating systems have not been tested on physical machines.
 
-### Supported text formats
+At least 8 GB RAM and several GB of free storage are recommended. CPU startup and long conversations are slower.
 
-| Source | What to paste |
-| --- | --- |
-| WeChat | Desktop multi-message copy: name, Chinese date/time, then message body on separate lines |
-| QQ | `Name: 09-17 19:26:53`, followed by the body on the next line; dates with a year also work |
-| WhatsApp | [Export a chat](https://faq.whatsapp.com/1180414079177245/), open the `.txt` file and copy its contents; the two common layouts below are supported |
-| iMessage / other apps | Format each message as `Name: body`; English names and names containing spaces work |
+## Existing model and settings
 
-```text
-[9/17/26, 7:26:53 PM] Alex: Dinner tonight?
-[9/17/26, 7:27:00 PM] Me: Sounds good
-```
+Before setup, copy `.env.example` to `.env` and set `LAYA_MODEL_PATH` to an absolute local checkpoint directory. It must contain `model.safetensors`, `rl_agent_config.json`, `encoder/config.json`, `tokenizer/tokenizer.json` and `tokenizer/tokenizer_config.json`. Setup then skips model downloads. Use the **multilingual** checkpoint for Chinese; automatic language routing is not enabled.
 
-```text
-17/09/2026, 19:26 - Alex: Dinner tonight?
-17/09/2026, 19:27 - Me: Sounds good
-```
+Set `LAYA_BACKEND=torch` and rerun setup to install the CPU backend. Default `auto` uses MLX on Apple Silicon and CPU elsewhere. Change `PORT` for the web server and `LAYA_URL=http://127.0.0.1:<port>` for the model service. The managed launcher supports loopback only. Do not expose this local application publicly.
 
-If copying from iMessage or another app gives you only the message bodies, add `Alex:` / `Me:` yourself. The app cannot recover missing sender information. Native iMessage bulk-copy compatibility has not been verified; only the manually labelled text format is supported. WhatsApp exports can vary by locale and version. The formats above have automated parser tests, not end-to-end verification on every client.
+## Behavior and limitations
 
-Multiline bodies and consecutive messages from the same person are preserved. Dates are kept as copied: the parser does not guess day/month order or missing years. Only two-person text conversations are supported—not images, audio, ZIP/HTML exports or chat databases. The app does not monitor messaging apps in the background.
+The original parser, incremental workflow, history retrieval, six-dimension scoring and refusal/wait rules remain. Model calls, English task definitions, token budgeting, startup and cache identity have changed.
 
-## Notes
+Laya multilingual has a **1,024-token total limit**, including questions and answer options. Each target is evaluated with a causal prefix. Required source messages and withdrawal evidence are retained first, then complete recent messages are added within the actual tokenizer budget. The overview detail shows its included message count. All imported text remains in browser storage. If required evidence itself exceeds capacity, analysis reports an error instead of silently truncating it.
 
-- The affection score combines six dimensions: keeping the conversation going, engagement, care, openness, intimacy and concrete actions. Click the score for a breakdown. An explicit refusal that still applies limits the score. **It is not the probability that someone likes you.**
-- Long conversations are processed in batches; the full history is not capped at 500 messages. New imports analyze new content and revisit recent messages from the other person. Previous grades for your own replies are retained.
-- Scoring uses recent messages and relevant original excerpts from history, including invitations, care, refusals and retractions. Old scores are not evidence for new scores. Retrieval can miss context.
-- Each model request stays within 500 messages and 12,000 text characters. Overlong individual messages are retained but need splitting before analysis. Paste at most 250,000 characters at a time; total history depends on browser storage capacity.
-- Chats and results stay in this browser's local database. **清空聊天，重新开始** (Clear chat and start over) deletes them. Other browsers or URL ports do not share the same data; clearing browser data also removes it.
-- Original messages needed for analysis are sent to TypeSafe using your account's credits. Local storage does not mean offline inference.
-- If analysis fails, check the terminal, API key and account credits. Never commit `.env` or private conversations.
+Cache identity includes weights, tokenizer, configuration, backend and rubric version. Old Jev results and results from a different runtime are invalidated. Normal inference stays offline on loopback; initial installation contacts package registries, GitHub and Hugging Face.
+
+Emotion and explicit refusals have been more reliable than fine-grained intent, absolute reply scores and next-action advice. Sarcasm, indirect language, friendship boundaries and withdrawn refusals remain difficult. Confidence is not accuracy, and refusal-priority rules cannot correct refusals the model fails to detect.
+
+The early standalone lab's 26 authored Chinese cases yielded emotion 6/7, intent 6/12, boundary 20/21, reply-score ranges 2/8 and action 2/4. Their English translations with the same multilingual checkpoint yielded 6/7, 6/12, 19/21, 3/8 and 0/4. Denominators count checks, not cases. These are **small diagnostic sets, not product accuracy or a comparison with Jev**. The main product applies additional context and business rules. See [evaluation notes](laya/README.md) for fixtures and reproduction.
 
 ## Development
 
-React + TypeScript + Vite + Express, using the TypeSafe SDK with `jev-1.13.0`.
-
-```sh
-npm run dev        # http://127.0.0.1:5178/
-npm test           # local tests; no model calls
-npm run check:live # real model check; uses your API credits
+```bash
+npm run dev            # model + API + Vite at http://127.0.0.1:5178
+npm test
+npm run laya:test
+npm run build
+npm run check:live     # requires a running model
+npm run check:product  # requires a running application
 ```
 
-## License
+The optional lab at `/laya-validation` shows raw model distributions. CI runs lightweight checks without downloading weights; live model validation is separate.
 
-[MIT](LICENSE). Not affiliated with WeChat, Tencent, TypeSafe or any messaging platform mentioned here.
+## Attribution
+
+The original project's MIT license is retained in [LICENSE](LICENSE). This fork uses [Laya](https://github.com/NandhaKishorM/laya), [Laya-MLX](https://github.com/mizorewww/laya-mlx) and the [official Apache-2.0 model](https://huggingface.co/convaiinnovations/laya), downloaded separately. Third-party components retain their own licenses. Model revision and backend versions are pinned in the setup files.

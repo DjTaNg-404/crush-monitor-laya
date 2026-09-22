@@ -31,6 +31,8 @@ const pause = (ms: number, signal: AbortSignal) =>
     if (signal.aborted) abort();
   });
 export function useAnalysis() {
+  const [engineKey, setEngineKey] = useState("");
+  const savedEngine = useRef("");
   const [overview, setOverview] = useState<Overview | null>(null),
     [overviewFresh, setOverviewFresh] = useState(false),
     [lines, setLines] = useState<Record<string, LineResult>>({}),
@@ -57,6 +59,8 @@ export function useAnalysis() {
   function reset() {
     cancel();
     base.current = null;
+    savedEngine.current = "";
+    setEngineKey("");
     savedLines.current = {};
     savedEvents.current = {};
     processed.current = 0;
@@ -69,10 +73,25 @@ export function useAnalysis() {
     setLatency(0);
     setAnalyzedCount(0);
   }
-  function restore(s: SavedConversation) {
+  async function restore(s: SavedConversation) {
     reset();
     base.current = { messages: s.messages, relation: s.relation };
-    if (s.rubric !== RUBRIC) return;
+    if (s.rubric !== RUBRIC || !s.engineKey) return;
+    const revision = rev.current;
+    try {
+      const response = await fetch("/api/health");
+      const current = await response.json();
+      if (
+        rev.current !== revision ||
+        !response.ok ||
+        current.engineKey !== s.engineKey
+      )
+        return;
+    } catch {
+      return;
+    }
+    savedEngine.current = s.engineKey;
+    setEngineKey(s.engineKey);
     savedLines.current = s.lines;
     savedEvents.current = s.events;
     processed.current = s.analyzedCount;
@@ -93,7 +112,25 @@ export function useAnalysis() {
     setStatus("loading");
     setError("");
     setOverviewFresh(false);
-    const previous = base.current;
+    let currentEngine: string;
+    try {
+      const response = await fetch("/api/health", { signal: ctrl.signal });
+      const current = await response.json();
+      if (!response.ok || !current.configured || !current.engineKey)
+        throw new Error(current.error || "本地模型尚未就绪");
+      currentEngine = current.engineKey;
+    } catch (e) {
+      if (rev.current === revision) {
+        setStatus("error");
+        setError((e as Error).message);
+      }
+      return;
+    }
+    if (rev.current !== revision) return;
+    const previous =
+      savedEngine.current === currentEngine ? base.current : null;
+    savedEngine.current = currentEngine;
+    setEngineKey(currentEngine);
     const append =
       !!previous &&
       previous.relation === relation &&
@@ -178,7 +215,12 @@ export function useAnalysis() {
         data = body;
         break;
       }
-      if (!data || data.revision !== revision || data.rubricVersion !== RUBRIC)
+      if (
+        !data ||
+        data.revision !== revision ||
+        data.rubricVersion !== RUBRIC ||
+        data.engineKey !== currentEngine
+      )
         throw new Error("分析版本不匹配，请刷新重试");
       const digest = await crypto.subtle.digest(
         "SHA-256",
@@ -286,6 +328,7 @@ export function useAnalysis() {
     }
   }
   return {
+    engineKey,
     overview,
     overviewFresh,
     lines,

@@ -9,7 +9,8 @@ import {
 } from "../shared/parser";
 import { grade, meanQuality } from "../shared/types";
 import { judgment, actionResult, percentages } from "../shared/rules";
-import { buildRequest, requestSchema } from "../server/analysis";
+import { requestSchema } from "../server/analysis";
+import { buildRequest } from "../tests/jev-reference";
 const realShape =
   "甲\n2026年09月19日 12:18\n刚才在做什么\n\n乙\n2026年09月19日 12:19\n整理书架\n\n乙\n2026年09月19日 12:19\n发现几本旧书\n\n乙\n2026年09月19日 12:19\n翻着翻着就看入迷了\n\n甲\n2026年09月19日 12:20\n听起来是个悠闲的下午";
 const msg = (text: string) => toMessages(parseChat(text).messages, "我");

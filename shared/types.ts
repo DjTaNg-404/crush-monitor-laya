@@ -67,6 +67,7 @@ export type AnalysisRequest = {
   targetIds: string[];
 };
 export type AnalysisResponse = {
+  engineKey?: string;
   memoryUpdates?: MemoryUpdate[];
   revision: number;
   contextHash: string;
@@ -77,8 +78,8 @@ export type AnalysisResponse = {
   usage: { input_tokens: number; output_tokens: number };
   latencyMs: number;
 };
-export const MODEL = "jev-1.13.0";
-export const RUBRIC = "crush-2026-09-21.2";
+export const MODEL = "laya-multilingual";
+export const RUBRIC = "crush-laya-2026-09-22.1";
 export const RELATIONS: Record<Relation, string> = {
   crush: "Crush / 暧昧中",
   new: "刚认识",

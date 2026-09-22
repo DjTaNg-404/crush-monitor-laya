@@ -173,6 +173,7 @@ export default function App() {
       ? {
           schema: 1,
           rubric: RUBRIC,
+          engineKey: a.engineKey,
           messages,
           self,
           other,
@@ -196,6 +197,7 @@ export default function App() {
     self,
     other,
     relation,
+    a.engineKey,
     a.lines,
     a.events,
     a.overview,
@@ -327,7 +329,7 @@ export default function App() {
           <header className="chat-head">
             <div className="contact-title">
               <h2>{messages.length ? other : "微信聊天"}</h2>
-              <span>{RELATIONS[relation]}</span>
+              <span>{RELATIONS[relation]} · 本地 Laya（实验性）</span>
             </div>
             <button
               className="header-affinity"
@@ -714,7 +716,8 @@ export default function App() {
           </button>
           <p>
             已保存 {messages.length.toLocaleString()}{" "}
-            条聊天。记录保存在本机浏览器，刷新后可继续；分析时只发送所需片段给模型服务。清空会删除本机记录。
+            条聊天。记录保存在本机浏览器，刷新后可继续；分析仅在本机 Laya
+            模型运行。清空会删除本机记录。
           </p>
         </Modal>
       )}
@@ -747,10 +750,12 @@ export default function App() {
           {detail === "overview" ? (
             <>
               <p>
-                0—100 是模型对这段聊天的好感信号评分，不是「对方喜欢你的概率」。
+                0—100 是本机 Laya
+                对可见片段的实验性好感信号评分，不是「对方喜欢你的概率」。
               </p>
               <p>
-                根据近期对话和相关历史原话评分，旧分数不参与计算。证据少时仍保留分数供娱乐参考。
+                本次总览实际参考 {ov?.contextCount ?? 0}{" "}
+                条原话。模型会在容量内选择近期完整消息与相关历史证据；更早消息仍保存在本机。旧分数不参与计算，结果仅供娱乐参考。
               </p>
               {!!ov?.memoryEvidenceIds?.length && (
                 <details>
@@ -814,7 +819,7 @@ export default function App() {
                 <span>/100</span>
               </div>
               <p>
-                已完成分析的我方回复平均分。Jev
+                已完成分析的我方回复平均分。Laya
                 根据发出时的前文评价表达质量，再按固定分数区间显示评级。
               </p>
               <div className="reply-guide">

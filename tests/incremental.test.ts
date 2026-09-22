@@ -6,7 +6,8 @@ import {
   type MemoryEvent,
 } from "../shared/memory";
 import { incrementalJobs, overviewJob } from "../shared/incremental";
-import { requestSchema, buildRequest } from "../server/analysis";
+import { requestSchema } from "../server/analysis";
+import { buildRequest } from "./jev-reference";
 import type { Message, LineResult } from "../shared/types";
 const ms = (n: number): Message[] =>
   Array.from({ length: n }, (_, i) => ({

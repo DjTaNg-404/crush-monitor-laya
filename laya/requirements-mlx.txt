@@ -1,0 +1,5 @@
+# Pinned source revision; install only on Apple Silicon.
+laya-mlx @ git+https://github.com/mizorewww/laya-mlx.git@0a859518634112655cb97c745dbf04f5191aaf13
+mlx==0.32.2
+mlx-metal==0.32.2
+tokenizers==0.23.2

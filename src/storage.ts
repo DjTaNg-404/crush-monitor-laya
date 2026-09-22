@@ -4,6 +4,7 @@ export type Trend = { at: string; value: number | null; count: number };
 export type SavedConversation = {
   schema: 1;
   rubric: string;
+  engineKey?: string;
   messages: Message[];
   self: string;
   other: string;

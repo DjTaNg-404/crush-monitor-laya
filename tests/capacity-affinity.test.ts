@@ -2,7 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { withinScope, recentScope } from "../shared/parser";
 import { MAX_MESSAGES, MAX_TEXT_CHARS } from "../shared/limits";
-import { buildRequest, requestSchema } from "../server/analysis";
+import { requestSchema } from "../server/analysis";
+import { buildRequest } from "../tests/jev-reference";
 import { AFFINITY_DIMENSIONS, composeAffinity } from "../shared/affinity";
 import type { Message } from "../shared/types";
 const messages = (n: number, text = "普通聊天内容"): Message[] =>
