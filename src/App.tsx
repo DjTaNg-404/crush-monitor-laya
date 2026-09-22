@@ -381,8 +381,8 @@ export default function App() {
           >
             {!messages.length ? (
               <div className="empty">
-                <h2>粘贴微信聊天记录</h2>
-                <p>在微信里多选、复制，然后粘贴到下方</p>
+                <h2>粘贴聊天记录</h2>
+                <p>支持微信、QQ 复制记录及 WhatsApp 文本导出</p>
                 <button
                   className="text-button"
                   onClick={() => prepare(exampleText(0))}
@@ -547,12 +547,12 @@ export default function App() {
           </div>
           <div className="composer">
             <textarea
-              aria-label="粘贴微信聊天记录"
+              aria-label="粘贴聊天记录"
               disabled={!ready}
               placeholder={
                 messages.length
                   ? "粘贴新的聊天，自动合并重复记录"
-                  : "在这里粘贴微信聊天记录…"
+                  : "在这里粘贴聊天记录…"
               }
               value={input}
               onChange={(e) => setInput(e.target.value)}

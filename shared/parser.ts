@@ -4,8 +4,18 @@ const time =
   "(?:\\d{4}[-/]\\d{1,2}[-/]\\d{1,2}\\s+)?\\d{1,2}:\\d{2}(?::\\d{2})?";
 const header = new RegExp(`^(.{1,40}?)\\s+(${time})$`);
 const bracket = new RegExp(`^\\[(${time})\\]\\s*(.{1,40}?)[：:]\\s*(.*)$`);
+// Keep dates as copied: 09/10 may mean September 10 or October 9.
+const qq =
+  /^(.{1,80}?)[：:]\s*((?:\d{4}[-/])?\d{1,2}[-/]\d{1,2}\s+\d{1,2}:\d{2}(?::\d{2})?)$/;
+const exportTime =
+  "\\d{1,4}[-/.]\\d{1,2}[-/.]\\d{1,4},?\\s+\\d{1,2}:\\d{2}(?::\\d{2})?(?:\\s*[AP]M)?";
+const whatsappBracket = new RegExp(`^\\[(${exportTime})\\]\\s*(.*)$`, "i");
+const whatsappDash = new RegExp(`^(${exportTime})\\s+-\\s+(.*)$`, "i");
+const namedText = /^([^：:<>]{1,80}?)[：:]\s*(.*)$/;
+const cleanHeader = (line: string) =>
+  line.replace(/^[\uFEFF\u200e\u200f]+/, "").trim();
 const media =
-  /^\[(?:图片|语音|视频|动画表情|表情包|文件|不支持的消息|撤回消息)\]$/;
+  /^\[(?:图片|语音|视频|动画表情|表情包|文件|不支持的消息|撤回消息)\]$|^<?(?:media omitted|image omitted|video omitted|audio omitted|sticker omitted)>?$/i;
 export function parseChat(raw: string): {
   messages: Parsed[];
   warnings: string[];
@@ -16,6 +26,18 @@ export function parseChat(raw: string): {
   const nativeFormat = lines.some((l) =>
     /^\d{4}年\d{1,2}月\d{1,2}日\s+\d{1,2}:\d{2}/.test(l.trim()),
   );
+  const structured =
+    nativeFormat ||
+    lines.some((line) => {
+      const value = cleanHeader(line);
+      return (
+        qq.test(value) ||
+        bracket.test(value) ||
+        header.test(value) ||
+        whatsappBracket.test(value) ||
+        whatsappDash.test(value)
+      );
+    });
   let current: Parsed | undefined;
   const push = () => {
     if (current?.text.trim())
@@ -39,9 +61,27 @@ export function parseChat(raw: string): {
       if (current) current.text += "\n";
       continue;
     }
-    const b = line.match(bracket);
-    const h = line.match(header);
-    const inline = line.match(/^([^\s：:<>]{1,24})[：:]\s*(.*)$/);
+    const value = cleanHeader(line);
+    const q = value.match(qq);
+    const w = value.match(whatsappBracket) || value.match(whatsappDash);
+    if (!nativeFormat && q) {
+      push();
+      current = { speaker: q[1].trim(), timestamp: q[2], text: "" };
+      continue;
+    }
+    if (!nativeFormat && w) {
+      push();
+      const body = w[2].match(namedText);
+      if (body) {
+        current = { speaker: body[1].trim(), timestamp: w[1], text: body[2] };
+      } else {
+        warnings.push("已跳过没有发送人的系统通知。");
+      }
+      continue;
+    }
+    const b = value.match(bracket);
+    const h = value.match(header);
+    const inline = value.match(namedText);
     if (!nativeFormat && b) {
       push();
       current = { speaker: b[2], timestamp: b[1], text: b[3] };
@@ -53,13 +93,13 @@ export function parseChat(raw: string): {
       continue;
     }
     if (
-      !nativeFormat &&
+      !structured &&
       inline &&
       !/^https?$/.test(inline[1]) &&
       !/^\d+$/.test(inline[1])
     ) {
       push();
-      current = { speaker: inline[1], timestamp: null, text: inline[2] };
+      current = { speaker: inline[1].trim(), timestamp: null, text: inline[2] };
       continue;
     }
     if (current) {
